@@ -28,6 +28,122 @@ var TwineApp = Backbone.Marionette.Application.extend(
 	version: '2.0.6',
 
 	/**
+	 Loads gettext strings via AJAX. This sets the app's i18nData and
+	 locale properties.
+
+	 @method loadLocale
+	 @param {String} locale locale (e.g. en_us) to load
+	 @param {Function} callback function to call once done
+	**/
+
+	loadLocale: function (locale, callback)
+	{
+		/**
+		 The app's current locale.
+
+		 @property locale
+		 @readonly
+		**/
+
+		this.locale = locale;
+
+		if (locale != 'en-us')
+		{
+			$.ajax({
+				url: 'locale/' + locale + '.js',
+				dataType: 'jsonp',
+				jsonpCallback: 'locale',
+				crossDomain: true
+			})
+			.always(function (data)
+			{
+				/**
+				 The raw JSON data used by the i18n object.
+
+				 @property i18nData
+				 @type {Object}
+				 **/
+
+				 this.i18nData = data;
+				 callback();
+			}.bind(this));
+		}
+		else
+		{
+			// dummy in data to get back source text as-is
+
+			this.i18nData =
+			{
+				domain: 'messages',
+				locale_data:
+				{
+					messages:
+					{
+						'':
+						{
+							domain: 'messages',
+							lang: 'en-us',
+							plural_forms: 'nplurals=2; plural=(n != 1);'
+						}
+					}
+				}
+			};
+			callback();
+		};
+	},
+
+	/**
+	 Translates a string to the user-set locale, interpolating variables.
+	 Anything passed beyond the source text will be interpolated into it.
+	 Underscore templates receive access to this via the shorthand method s().
+
+	 @method say
+	 @param {String} source source text to translate
+	 @return string translation
+	**/
+
+	say: function (source)
+	{
+		if (arguments.length == 1)
+			return this.i18n.gettext(source);
+		else
+		{
+			// interpolation required
+
+			var sprintfArgs = [this.i18n.gettext(source)];
+
+			for (var i = 1; i < arguments.length; i++)
+				sprintfArgs.push(arguments[i]);
+
+			return this.i18n.sprintf.apply(this.i18n.sprintf, sprintfArgs);
+		};
+	},
+
+	/**
+	 Translates a string to the user-set locale, keeping in mind pluralization rules.
+	 Any additional arguments passed after the ones listed here are interpolated into
+	 the resulting string. Underscore template receive this as the shorthand method sp.
+
+	 When interpolating, count will always be the first argument.
+	
+	 @method translatePlural
+	 @param {String} sourceSingular source text to translate with singular form
+	 @param {String} sourcePlural source text to translate with plural form
+	 @param {Number} count count to use for pluralization
+	 @return string translation
+	**/
+	
+	sayPlural: function (sourceSingular, sourcePlural, count)
+	{
+		var sprintfArgs = [this.i18n.ngettext(sourceSingular, sourcePlural, count), count];
+
+		for (var i = 3; i < arguments.length; i++)
+			sprintfArgs.push(arguments[i]);
+			
+		return this.i18n.sprintf.apply(this.i18n.sprintf, sprintfArgs);
+	},
+
+	/**
 	 Saves data to a file. This appears to the user as if they had clicked
 	 a link to a downloadable file in their browser. If no failure method is specified,
 	 then this will show a notification when errors occur.
@@ -82,8 +198,9 @@ var TwineApp = Backbone.Marionette.Application.extend(
 			if (failure)
 				failure(e);
 			else
-				ui.notify('&ldquo;' + filename + '&rdquo; could not be saved (' +
-				          e.message + ').', 'danger');
+				// L10n: %1$s is a filename; %2$s is the error message.
+				ui.notify(this.say('&ldquo;%1$s&rdquo; could not be saved (%2$s).', filename, e.message),
+				          'danger');
 		};
 	},
 
@@ -137,7 +254,11 @@ var TwineApp = Backbone.Marionette.Application.extend(
 					   function (err, output)
 		{
 			if (err)
-				ui.notify('An error occurred while publishing your story. (' + err.message + ')', 'danger');
+			{
+				// L10n: %s is the error message.
+				ui.notify(this.say('An error occurred while publishing your story. (%s)', err.message),
+				          'danger');
+			}
 			else
 			{
 				if (filename)
@@ -165,7 +286,8 @@ var TwineApp = Backbone.Marionette.Application.extend(
 			output += story.publish(null, null, true) + '\n\n';
 		});
 
-		this.saveFile(output, new Date().toLocaleString().replace(/[\/:\\]/g, '.') + ' Twine Archive.html');
+		this.saveFile(output, new Date().toLocaleString().replace(/[\/:\\]/g, '.') + ' ' +
+		              window.app.say('Twine Archive.html'));
 	},
 	
 	/**
@@ -335,6 +457,42 @@ window.app.addInitializer(function ()
 {
 	if (nwui.active)
 		nwui.init();
+
+	/**
+	 The Jed instance used to manage translations.
+	 
+	 @property i18n
+	**/
+
+	this.i18n = new Jed(this.i18nData);
+
+	// add i18n hook to Marionette's rendering
+
+	/**
+	 Properties that are always passed to templates.
+	 Right now, this is only used for 18n -- s() is a shorthand for TwineApp.say()
+	 and sp() is a shorthand for TwineApp.sayPlural().
+
+	 @property templateProperties
+	**/
+
+	this.templateProperties =
+	{
+		s: this.say.bind(this),
+		sp: this.sayPlural.bind(this)
+	};
+
+	Backbone.Marionette.Renderer.render = function (template, data)
+	{
+		template = Marionette.TemplateCache.get(template);
+		data = _.extend(data, window.app.templateProperties);
+
+		if (typeof(template) == 'function')
+			return template(data);	
+		else
+			return _.template(template)(data);
+	};
+
 	/**
 	 Build number of the app.
 
@@ -391,4 +549,33 @@ window.app.addRegions(
 	}
 });
 
-window.app.start();
+// bootstrap app after loading localization, if any
+
+(function()
+{
+	var locale;
+
+	// URL parameter locale overrides everything
+
+	var localeUrlMatch = /locale=([^&]+)&?/.exec(window.location.search);
+
+	if (localeUrlMatch)
+		locale = localeUrlMatch[1];
+	else
+	{
+		// use app preference; default to best guess
+		// http://stackoverflow.com/questions/673905/best-way-to-determine-users-locale-within-browser
+
+		var localePref = AppPref.withName('locale',
+		                                  window.navigator.userLanguage || window.navigator.language ||
+		                                  window.navigator.browserLanguage || window.navigator.systemLanguage ||
+		                                  'en-us');
+
+		locale = localePref.get('value');
+	};
+	
+	window.app.loadLocale(locale.toLowerCase(), function()
+	{
+		window.app.start();
+	});
+})();

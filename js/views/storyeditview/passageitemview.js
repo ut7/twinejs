@@ -162,15 +162,14 @@ var PassageItemView = Marionette.ItemView.extend(
 			this.delete();
 		else
 		{
-			var message = 'Are you sure you want to delete &ldquo;' +
-						  this.model.get('name') + '?&rdquo; This cannot be undone.';
+			var message = window.app.say('Are you sure you want to delete &ldquo;%s&rdquo;? ' +
+			                                   'This cannot be undone.', this.model.get('name'));
 
 			if (! window.app.hasPrimaryTouchUI())
-				message += '<br><br>(Hold the Shift key when deleting to skip this message.)';
+				message += '<br><br>' + window.app.say('(Hold the Shift key when deleting to skip this message.)');
 
-			ui.confirm(message, '<i class="fa fa-trash-o"></i> Delete',
-					   this.delete.bind(this),
-					   { buttonClass: 'danger' });
+			ui.confirm(message, '<i class="fa fa-trash-o"></i> ' + window.app.say('Delete'),
+					   this.delete.bind(this), { buttonClass: 'danger' });
 		};
 	},
 

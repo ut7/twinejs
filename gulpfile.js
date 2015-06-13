@@ -4,6 +4,7 @@ var del = require('del');
 var fs = require('fs');
 var twinePackage = require('./package.json');
 var connect = require('gulp-connect');
+var glob = require('glob');
 var include = require('gulp-include');
 var jshint = require('gulp-jshint');
 var jshintStylish = require('jshint-stylish');
@@ -11,6 +12,7 @@ var minifyHtml = require('gulp-minify-html');
 var minifyCss = require('gulp-minify-css');
 var nwBuilder = require('node-webkit-builder');
 var plumber = require('gulp-plumber');
+var po2json = require('gulp-po2json');
 var rename = require('gulp-rename');
 var replace = require('gulp-replace');
 var runSequence = require('run-sequence');
@@ -51,6 +53,7 @@ var JSHINT_OPTS =
 		_: true,
 		Backbone: true,
 		FastClick: true,
+		Jed: true,
 		Marionette: true,
 		CodeMirror: true,
 		saveAs: true,
@@ -334,8 +337,38 @@ gulp.task('package:linux64', ['release:nw', 'package:clean'], function (cb)
 	fs.renameSync('dist/nwjs/Twine/linux64', 'dist/nwjs/Twine/' + folderName);
 	childProcess.execSync('zip -r ../../download/' + folderName + '.zip ' + folderName,
 	                      { cwd: 'dist/nwjs/Twine' });
-	fs.renameSync('dist/nwjs/Twine/' + folderName, 'dist/nwjs/Twine/linux64', cb);
+	fs.renameSync('dist/nwjs/Twine/' + folderName, 'dist/nwjs/Twine/linux64');
 	cb();
 });
 
 gulp.task('package', ['package:web', 'package:win32', 'package:win64', 'package:osx', 'package:linux32', 'package:linux64']);
+
+gulp.task('buildpot', function (cb)
+{
+	del.sync('locale/po/template.pot');
+
+	// we use PHP mode with Underscore templates because it's used to parsing
+	// HTML sludge for nuggets of code :)
+
+	var templates = glob.sync('templates/**/*.html');
+	childProcess.execSync('xgettext -L PHP -ks -ksp:1,2 -cL10n ' +
+	                      '-o locale/po/template.pot ' + templates.join(' '));
+
+	var js = glob.sync('js/**/*.js');
+	childProcess.execSync('xgettext -j -L JavaScript -ksay -ksayPlural:1,2 -cL10n ' +
+	                      '-o locale/po/template.pot ' + js.join(' '));
+	cb();
+});
+
+gulp.task('buildpojson', function()
+{
+	return gulp.src('locale/po/*.po')
+	       .pipe(po2json({ format: 'jed1.x', domain: 'messages' }))
+		   .pipe(replace(/^/, 'window.locale('))
+		   .pipe(replace(/$/, ')'))
+		   .pipe(rename(function (path)
+		   {
+	       	path.extname = '.js'
+		   }))
+		   .pipe(gulp.dest('locale/'));
+});

@@ -247,10 +247,9 @@ var StoryListView = Backbone.Marionette.CompositeView.extend(
 
 				if (count > 0)
 				{
-					if (count == 1)
-						message = '1 story was imported.';
-					else
-						message = count + ' stories were imported.';
+					// L10n: %d is a number of stories.
+					message = window.app.sayPlural('%d story was imported.',
+					                               '%d stories were imported.', count);
 				}
 				else
 				{
@@ -338,8 +337,8 @@ var StoryListView = Backbone.Marionette.CompositeView.extend(
 			this.$('.noStories').css('display', 'block');
 		};
 
-		document.title = this.collection.length + ' Stor' +
-		                 ((this.collection.length == 1) ? 'y' : 'ies');
+		// L10n: %d is a number of stories
+		document.title = window.app.sayPlural('%d Story', '%d Stories', this.collection.length);
 	},
 
 	events:

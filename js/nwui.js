@@ -78,7 +78,7 @@ var nwui =
 			// if you don't remember the keyboard shortcut
 
 			mainMenu.submenu.insert(new nwui.gui.MenuItem({
-				label: 'Toggle Fullscreen',
+				label: window.app.say('Toggle Fullscreen'),
 				key: 'f',
 				modifiers: 'cmd-shift',
 				click: function()
@@ -97,7 +97,7 @@ var nwui =
 			});
 
 			mainMenu.submenu.append(new nwui.gui.MenuItem({
-				label: 'Quit',
+				label: window.app.say('Quit'),
 				key: 'q',
 				modifiers: 'ctrl',
 				click: function()
@@ -112,12 +112,12 @@ var nwui =
 			// and a stand-in Edit menu
 
 			var editMenu = new nwui.gui.MenuItem({
-				label: 'Edit',
+				label: window.app.say('Edit'),
 				submenu: new nwui.gui.Menu()
 			});
 
 			editMenu.submenu.append(new nwui.gui.MenuItem({
-				label: 'Undo',
+				label: window.app.say('Undo'),
 				key: 'z',
 				modifiers: 'ctrl',
 				click: function()
@@ -129,7 +129,7 @@ var nwui =
 			editMenu.submenu.append(new nwui.gui.MenuItem({ type: 'separator' }));
 
 			editMenu.submenu.append(new nwui.gui.MenuItem({
-				label: 'Cut',
+				label: window.app.say('Cut'),
 				key: 'x',
 				modifiers: 'ctrl',
 				click: function()
@@ -139,7 +139,7 @@ var nwui =
 			}));
 
 			editMenu.submenu.append(new nwui.gui.MenuItem({
-				label: 'Copy',
+				label: window.app.say('Copy'),
 				key: 'c',
 				modifiers: 'ctrl',
 				click: function()
@@ -149,7 +149,7 @@ var nwui =
 			}));
 
 			editMenu.submenu.append(new nwui.gui.MenuItem({
-				label: 'Paste',
+				label: window.app.say('Paste'),
 				key: 'v',
 				modifiers: 'ctrl',
 				click: function()
@@ -159,7 +159,7 @@ var nwui =
 			}));
 
 			editMenu.submenu.append(new nwui.gui.MenuItem({
-				label: 'Delete',
+				label: window.app.say('Delete'),
 				click: function()
 				{
 					document.execCommand('delete');
@@ -179,7 +179,7 @@ var nwui =
 		nwui.path = require('path');
 
 		mainMenu.submenu.insert(new nwui.gui.MenuItem({
-			label: 'Show Library',
+			label: window.app.say('Show Library'),
 			click: function()
 			{
 				nwui.gui.Shell.openItem(nwui.path.resolve(nwui.filePath.replace(/\//g, nwui.path.sep)));
@@ -227,21 +227,38 @@ var nwui =
 		// if the user doesn't have a Documents folder,
 		// check for "My Documents" instead (thanks Windows)
 
-		var docPath = homePath + '/Documents';
+		// L10n: This is the folder name on OS X, Linux, and recent versions of
+		// Windows that a user's documents are stored in, relative to the
+		// user's home directory. If you need to use a space in this name,
+		// then it should have two backslashes (\\) in front of it.
+		// Regardless, this must have a single forward slash (/) as its first
+		// character.
+		var docPath = homePath + window.app.say('/Documents');
 
 		if (! nwui.fs.existsSync(docPath))
 		{
-			if (nwui.fs.existsSync(homePath + '/My\\ Documents'))
-				docPath = homePath + '/My\\ Documents';
+			// L10n: This is the folder name on Windows XP that a user's
+			// documents are stored in, relative to the user's home directory.
+			// This is used if a folder with the name given by the translation
+			// key '/Documents' does not exist. If you need to use a space in
+			// this name, then it should have two backslashes (\\) in front of it.
+			// Regardless, this must have a single forward slash (/) as its first character.
+			if (nwui.fs.existsSync(homePath + window.app.say('/My\\ Documents')))
+				docPath = homePath + window.app.say('/My\\ Documents');
 			else
 				nwui.fs.mkdirSync(docPath);
 		};
 
-		nwui.filePath = docPath + '/Twine/Stories/';
+		// L10n: '/Twine' is a suitable name for Twine-related files to exist
+		// under on the user's hard drive. '/Stories' is a suitable name for
+		// story files specifically. If you need to use a space in this name,
+		// then it should have two backslashes in front of it. Regardless,
+		// this must have a single forward slash (/) as its first character.
+		nwui.filePath = docPath + window.app.say('/Twine') + window.app.say('/Stories');
 
 		if (! nwui.fs.existsSync(nwui.filePath))
 		{
-			var twinePath = docPath + '/Twine';
+			var twinePath = docPath + window.app.say('/Twine');
 
 			if (! nwui.fs.existsSync(twinePath))
 				nwui.fs.mkdirSync(twinePath);
@@ -406,7 +423,8 @@ var nwui =
 		}
 		catch (e)
 		{
-			ui.notify('An error occurred while saving your story (' + e.message + ').', 'danger');
+			// L10n: %s is the error message.
+			ui.notify(window.app.say('An error occurred while saving your story (%s).', e.message), 'danger');
 			throw e;
 		}
 		finally
@@ -432,7 +450,8 @@ var nwui =
 		}
 		catch (e)
 		{
-			ui.notify('An error occurred while deleting your story (' + e.message + ').', 'danger');
+			// L10n: %s is the error message.
+			ui.notify(window.app.say('An error occurred while deleting your story (%s).', e.message), 'danger');
 		}
 		finally
 		{
@@ -501,7 +520,8 @@ var nwui =
 		}
 		catch (e)
 		{
-			ui.notify('An error occurred while locking your library (' + e.message + ').', 'danger');
+			// L10n: Locking in the sense of preventing changes to a file. %s is the error message.
+			ui.notify(window.app.say('An error occurred while locking your library (%s).', e.message), 'danger');
 		};
 	},
 
@@ -529,7 +549,8 @@ var nwui =
 		}
 		catch (e)
 		{
-			ui.notify('An error occurred while unlocking your library (' + e.message + ').', 'danger');
+			// L10n: Unlocking in the sense of allowing changes to a file. %s is the error message.
+			ui.notify(window.app.say('An error occurred while unlocking your library (%s).', e.message), 'danger');
 		};
 	},
 };

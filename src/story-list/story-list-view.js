@@ -247,6 +247,23 @@ module.exports = Marionette.CompositeView.extend({
 	 @method saveArchive
 	**/
 
+  importArchive: function () {
+    var that = this;
+    $.get("/archive", function (data) {
+      importer.import(data);
+      that.collection.reset(StoryCollection.all().models);
+    });
+  },
+
+  updateArchive: function () {
+    var output = "";
+    StoryCollection.all().each(function (story) {
+      output += story.publish(null, null, true) + "\n\n";
+    });
+
+    $.post("/archive", output);
+  },
+
 	saveArchive: function() {
 		publish.saveArchive();
 	},
@@ -370,6 +387,8 @@ module.exports = Marionette.CompositeView.extend({
 		'submit #addStoryForm': 'addStory',
 		'click .saveArchive': 'saveArchive',
 		'change .importFile': 'importFile',
+    'click .importArchive': 'importArchive',
+    'click .updateArchive': 'updateArchive',
 		'click .sortByDate': 'sortByDate',
 		'click .sortByName': 'sortByName',
 
